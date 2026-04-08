@@ -26,7 +26,7 @@ export interface MapDrawing {
 export interface NavigationCommand {
   id: string;
   type: 'direction' | 'danger' | 'drawing' | 'message';
-  data: any;
+  data: Record<string, unknown>;
   timestamp: Date;
   from: 'copilot' | 'user';
 }
@@ -41,7 +41,7 @@ export interface WebRTCConnection {
 
 export interface WebSocketMessage {
   type: 'position' | 'zoom' | 'drawing' | 'direction' | 'danger_zone' | 'connection' | 'guidance_instruction';
-  data: any;
+  data: Record<string, unknown>;
   timestamp: Date;
   from: string;
   to: string;

@@ -1,0 +1,41 @@
+{
+  "users": [],
+  "incidents": [],
+  "emergency_contacts": [],
+  "alerts": [],
+  "medical_services": [
+    {
+      "id": 1,
+      "name": "Hôpital Général de Kinshasa",
+      "type": "hospital",
+      "phone": "+243123456789",
+      "address": "Avenue de la Paix, Kinshasa",
+      "latitude": -4.3275,
+      "longitude": 15.3136,
+      "responseTime": 15,
+      "isActive": true
+    },
+    {
+      "id": 2,
+      "name": "Centre Médical Ngaliema",
+      "type": "clinic",
+      "phone": "+243987654321",
+      "address": "Boulevard Ngaliema, Kinshasa",
+      "latitude": -4.3026,
+      "longitude": 15.2682,
+      "responseTime": 10,
+      "isActive": true
+    },
+    {
+      "id": 3,
+      "name": "Service d'Ambulance USALAMA",
+      "type": "ambulance",
+      "phone": "+243112233445",
+      "address": "Disponible 24/7",
+      "latitude": -4.3275,
+      "longitude": 15.3136,
+      "responseTime": 8,
+      "isActive": true
+    }
+  ]
+}

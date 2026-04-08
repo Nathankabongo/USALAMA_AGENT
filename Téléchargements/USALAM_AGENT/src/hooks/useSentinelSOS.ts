@@ -19,6 +19,20 @@ interface SOSConfig {
   stealthModeEnabled: boolean;
 }
 
+interface EmergencyAlert {
+  id: string;
+  type: 'stealth' | 'maximum';
+  timestamp: string;
+  location?: {
+    lat: number;
+    lng: number;
+    accuracy?: number;
+  };
+  user_id?: string;
+  audio_evidence: boolean;
+  synced: boolean;
+}
+
 export const useSentinelSOS = (config: Partial<SOSConfig> = {}) => {
   const defaultConfig: SOSConfig = {
     longPressDuration: 3000, // 3 seconds
@@ -44,13 +58,6 @@ export const useSentinelSOS = (config: Partial<SOSConfig> = {}) => {
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const audioStream = useRef<MediaStream | null>(null);
 
-  // Initialize SOS system
-  useEffect(() => {
-    initializeSOSSystem();
-    return () => {
-      cleanupSOSSystem();
-    };
-  }, []);
 
   const initializeSOSSystem = async () => {
     try {
@@ -59,7 +66,7 @@ export const useSentinelSOS = (config: Partial<SOSConfig> = {}) => {
       
       // Check for stealth mode setting
       const stealthEnabled = await offlineStorage.getUserSetting('stealth_mode_enabled');
-      if (stealthEnabled !== undefined) {
+      if (typeof stealthEnabled === 'boolean') {
         defaultConfig.stealthModeEnabled = stealthEnabled;
       }
       
@@ -94,11 +101,14 @@ export const useSentinelSOS = (config: Partial<SOSConfig> = {}) => {
     // Request actual media permissions
     try {
       if (navigator.mediaDevices) {
-        await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         console.log('🎤 Microphone access granted');
+        // Stop the stream immediately after getting permission
+        stream.getTracks().forEach(track => track.stop());
       }
     } catch (error) {
       console.log('⚠️ Microphone access denied:', error);
+      // Don't throw error, just log it
     }
   };
 
@@ -178,22 +188,41 @@ export const useSentinelSOS = (config: Partial<SOSConfig> = {}) => {
     }));
 
     // Create emergency alert
-    const alert = {
-      type: priority === 'maximum' ? 'maximum' as const : 'stealth' as const,
+    const locationResult = await getCurrentLocation();
+    const alert: EmergencyAlert = {
+      id: `sos_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: priority === 'maximum' ? 'maximum' : 'stealth',
       timestamp: new Date().toISOString(),
-      location: await getCurrentLocation(),
-      user_id: localStorage.getItem('usalama_user_id'),
-      audio_evidence: sosState.recording
+      location: 'error' in locationResult ? undefined : { 
+        ...locationResult, 
+        accuracy: undefined 
+      },
+      user_id: localStorage.getItem('usalama_user_id') || undefined,
+      audio_evidence: sosState.recording,
+      synced: false
     };
 
     // Store emergency alert
-    await offlineStorage.storeEmergencyAlert(alert);
-
+    const alertId = await offlineStorage.storeEmergencyAlert(alert);
+    
     // Start continuous tracking
     await startContinuousTracking();
-
-    // Send to server if online
-    await syncEmergencyAlert(alert);
+    
+    // Send to server if online (using the full alert with id)
+    try {
+      const response = await fetch('/api/emergency/sos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...alert, id: alertId })
+      });
+      
+      if (response.ok) {
+        await offlineStorage.markEmergencyAlertSynced(alertId);
+        console.log('✅ Emergency alert synced to server');
+      }
+    } catch (error) {
+      console.log('📴 Offline mode - Alert stored locally');
+    }
 
     // Trigger emergency feedback
     triggerEmergencyFeedback(priority);
@@ -210,16 +239,22 @@ export const useSentinelSOS = (config: Partial<SOSConfig> = {}) => {
     }));
 
     // Create stealth alert
-    const alert = {
-      type: 'stealth' as const,
+    const locationResult = await getCurrentLocation();
+    const alert: EmergencyAlert = {
+      id: `stealth_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: 'stealth',
       timestamp: new Date().toISOString(),
-      location: await getCurrentLocation(),
-      user_id: localStorage.getItem('usalama_user_id'),
-      audio_evidence: sosState.recording
+      location: 'error' in locationResult ? undefined : { 
+        ...locationResult, 
+        accuracy: undefined 
+      },
+      user_id: localStorage.getItem('usalama_user_id') || undefined,
+      audio_evidence: sosState.recording,
+      synced: false
     };
 
     // Store stealth alert
-    await offlineStorage.storeEmergencyAlert(alert);
+    const alertId = await offlineStorage.storeEmergencyAlert(alert);
 
     // Start background tracking
     await startBackgroundTracking();
@@ -358,16 +393,15 @@ export const useSentinelSOS = (config: Partial<SOSConfig> = {}) => {
     console.log('📍 GPS tracking stopped');
   };
 
-  const getCurrentLocation = async () => {
+  const getCurrentLocation = async (): Promise<{ lat: number; lng: number } | { error: string }> => {
     return new Promise((resolve) => {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-          position => ({
+          (position) => resolve({
             lat: position.coords.latitude,
-            lng: position.coords.longitude,
-            accuracy: position.coords.accuracy
+            lng: position.coords.longitude
           }),
-          () => ({ error: 'Location denied' }),
+          () => resolve({ error: 'Location denied' }),
           { enableHighAccuracy: true, timeout: 5000 }
         );
       }
@@ -375,7 +409,7 @@ export const useSentinelSOS = (config: Partial<SOSConfig> = {}) => {
     });
   };
 
-  const syncEmergencyAlert = async (alert: any) => {
+  const syncEmergencyAlert = async (alert: EmergencyAlert) => {
     try {
       const response = await fetch('/api/emergency/sos', {
         method: 'POST',
@@ -393,9 +427,9 @@ export const useSentinelSOS = (config: Partial<SOSConfig> = {}) => {
   };
 
   const showFakeInterface = async () => {
-    const fakeApps = ['/fake-weather', '/fake-news', '/fake-calculator'];
-    const randomApp = fakeApps[Math.floor(Math.random() * fakeApps.length)];
-    window.location.href = randomApp;
+    // Instead of completely leaving the app, dispatch the decoy event
+    // so the app switches to the fake weather/calc screen while staying active
+    window.dispatchEvent(new CustomEvent('trigger-decoy'));
   };
 
   const triggerEmergencyFeedback = (priority: 'maximum' | 'high') => {
@@ -445,6 +479,15 @@ export const useSentinelSOS = (config: Partial<SOSConfig> = {}) => {
     stopTracking();
     stopEmergencyRecording();
   };
+
+  // Initialize SOS system
+  useEffect(() => {
+    initializeSOSSystem();
+    return () => {
+      cleanupSOSSystem();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Public API
   const deactivateSOS = async () => {

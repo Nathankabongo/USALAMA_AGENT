@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  database:
+    image: postgis/postgis:15-3.3
+    container_name: usalama_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DATABASE_USER:-usalama}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-usalama_secret}
+      POSTGRES_DB: ${DATABASE_NAME:-usalama}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./backend/data/postgres_data:/var/lib/postgresql/data
+      - ./backend/data/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - usalama_network
+
+networks:
+  usalama_network:
+    driver: bridge

@@ -33,6 +33,12 @@ interface IncidentReport {
   synced: boolean;
 }
 
+interface UserSetting {
+  key: string;
+  value: unknown;
+  timestamp: string;
+}
+
 class OfflineStorage {
   private dbName = 'usalama_offline';
   private version = 1;
@@ -103,10 +109,9 @@ class OfflineStorage {
       
       const transaction = this.db.transaction(['emergency_alerts'], 'readonly');
       const store = transaction.objectStore('emergency_alerts');
-      const index = store.index('synced');
-      const request = index.getAll(false);
+      const request = store.getAll();
       
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => resolve(request.result.filter((item: EmergencyAlert) => item.synced === false));
       request.onerror = () => reject(request.error);
     });
   }
@@ -213,16 +218,15 @@ class OfflineStorage {
       
       const transaction = this.db.transaction(['incident_reports'], 'readonly');
       const store = transaction.objectStore('incident_reports');
-      const index = store.index('synced');
-      const request = index.getAll(false);
+      const request = store.getAll();
       
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => resolve(request.result.filter((item: IncidentReport) => item.synced === false));
       request.onerror = () => reject(request.error);
     });
   }
 
   // User Settings
-  async setUserSetting(key: string, value: any): Promise<void> {
+  async setUserSetting(key: string, value: unknown): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!this.db) return reject(new Error('Database not initialized'));
       
@@ -235,7 +239,7 @@ class OfflineStorage {
     });
   }
 
-  async getUserSetting(key: string): Promise<any> {
+  async getUserSetting(key: string): Promise<unknown> {
     return new Promise((resolve, reject) => {
       if (!this.db) return reject(new Error('Database not initialized'));
       
@@ -278,8 +282,14 @@ class OfflineStorage {
         
         // Count unsynced items
         Promise.all([
-          this.countIndex(transaction.objectStore('emergency_alerts').index('synced'), false),
-          this.countIndex(transaction.objectStore('incident_reports').index('synced'), false)
+          new Promise<number>((res) => {
+            const req = transaction.objectStore('emergency_alerts').getAll();
+            req.onsuccess = () => res(req.result.filter((r: any) => r.synced === false).length);
+          }),
+          new Promise<number>((res) => {
+            const req = transaction.objectStore('incident_reports').getAll();
+            req.onsuccess = () => res(req.result.filter((r: any) => r.synced === false).length);
+          })
         ]).then(([unsyncedAlerts, unsyncedReports]) => {
           stats.unsyncedItems = unsyncedAlerts + unsyncedReports;
           resolve(stats);
@@ -296,7 +306,7 @@ class OfflineStorage {
     });
   }
 
-  private countIndex(index: IDBIndex, value: any): Promise<number> {
+  private countIndex(index: IDBIndex, value: string | number): Promise<number> {
     return new Promise((resolve, reject) => {
       const request = index.count(value);
       request.onsuccess = () => resolve(request.result);

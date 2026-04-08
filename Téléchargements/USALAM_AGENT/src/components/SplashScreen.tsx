@@ -11,13 +11,13 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
   const [loadingProgress, setLoadingProgress] = useState(0);
 
   useEffect(() => {
-    // Simulate app initialization
+    // Simulate app initialization - durées augmentées
     const initSteps = [
-      { step: 'Chargement des services de sécurité...', duration: 800 },
-      { step: 'Initialisation du GPS...', duration: 600 },
-      { step: 'Configuration des permissions...', duration: 500 },
-      { step: 'Préparation du mode SOS...', duration: 700 },
-      { step: 'USALAMA AGENT prêt!', duration: 400 }
+      { step: 'Chargement des services de sécurité...', duration: 1500 },
+      { step: 'Initialisation du GPS...', duration: 1200 },
+      { step: 'Configuration des permissions...', duration: 1000 },
+      { step: 'Préparation du mode SOS...', duration: 1400 },
+      { step: 'USALAMA AGENT prêt!', duration: 800 }
     ];
 
     let currentStep = 0;
@@ -41,8 +41,8 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
               setIsLoading(false);
               setTimeout(() => {
                 onComplete();
-              }, 500);
-            }, 300);
+              }, 1500); // Augmenté de 500ms à 1500ms
+            }, 500);
           } else {
             runInitSteps();
           }

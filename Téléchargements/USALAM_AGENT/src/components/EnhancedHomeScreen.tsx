@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Shield, 
@@ -27,19 +27,39 @@ import {
   Facebook,
   Instagram,
   Youtube,
-  CheckCircle
+  CheckCircle,
+  MessageSquare,
+  Battery,
+  Wifi,
+  Thermometer,
+  Wind,
+  Cloud,
+  Zap,
+  ShieldCheck,
+  Star,
+  Award,
+  Target,
+  Eye,
+  BarChart3,
+  Calendar,
+  RadioReceiver,
+  Compass,
+  Flashlight,
+  Stethoscope,
+  Ambulance,
+  Hospital
 } from 'lucide-react';
 
-import { NavigationProps, navigationItems } from '../types/navigation';
+import { NavigationProps, navigationItems, ScreenType } from '../types/navigation';
 
 interface EnhancedHomeScreenProps {
-  onNavigate?: (screen: 'home' | 'enhanced-home' | 'contacts' | 'alerts' | 'profile' | 'guard' | 'evidence' | 'survival' | 'firstaid' | 'snig' | 'enhanced-map' | 'sos') => void;
+  onNavigate?: (screen: ScreenType) => void;
 }
 
 interface QuickAction {
   id: string;
   title: string;
-  icon: any;
+  icon: React.ReactNode;
   color: string;
   action: () => void;
   badge?: number;
@@ -50,21 +70,61 @@ interface NewsItem {
   title: string;
   source: string;
   time: string;
-  category: 'police' | 'government' | 'traffic' | 'weather' | 'security' | 'world' | 'drc' | 'kinshasa';
+  category: 'police' | 'government' | 'traffic' | 'weather' | 'security' | 'world' | 'drc';
   content: string;
   urgent: boolean;
   imageUrl?: string;
+  location: 'world' | 'drc' | 'kinshasa';
   socialMedia?: {
     twitter?: string;
     facebook?: string;
     instagram?: string;
     youtube?: string;
   };
-  location?: 'world' | 'drc' | 'kinshasa';
   likes: number;
   comments: number;
   shares: number;
   isBookmarked: boolean;
+}
+
+interface SecurityMetric {
+  id: string;
+  title: string;
+  value: string | number;
+  change: number;
+  icon: any;
+  color: string;
+  trend: 'up' | 'down' | 'stable';
+}
+
+interface CommunityAlert {
+  id: string;
+  type: 'help' | 'warning' | 'info' | 'success';
+  title: string;
+  description: string;
+  author: string;
+  time: string;
+  location: string;
+  verified: boolean;
+  responses: number;
+}
+
+interface WeatherInfo {
+  temperature: number;
+  condition: 'sunny' | 'cloudy' | 'rainy' | 'stormy';
+  humidity: number;
+  windSpeed: number;
+  uvIndex: number;
+  airQuality: 'good' | 'moderate' | 'poor';
+}
+
+interface EmergencyContact {
+  id: string;
+  name: string;
+  type: 'police' | 'hospital' | 'fire' | 'ambulance';
+  phone: string;
+  responseTime: string;
+  available: boolean;
 }
 
 interface SecurityAlert {
@@ -237,20 +297,140 @@ const EnhancedHomeScreen = ({ onNavigate }: NavigationProps) => {
     }
   ]);
 
+  // Nouvelles données pour les statistiques et métriques
+  const [securityMetrics] = useState<SecurityMetric[]>([
+    {
+      id: '1',
+      title: 'Incidents aujourd\'hui',
+      value: 12,
+      change: -15,
+      icon: <AlertTriangle className="w-5 h-5" />,
+      color: 'text-orange-400',
+      trend: 'down'
+    },
+    {
+      id: '2',
+      title: 'Temps de réponse moyen',
+      value: '8 min',
+      change: -20,
+      icon: <Clock className="w-5 h-5" />,
+      color: 'text-green-400',
+      trend: 'down'
+    },
+    {
+      id: '3',
+      title: 'Utilisateurs actifs',
+      value: '2.4K',
+      change: 12,
+      icon: <Users className="w-5 h-5" />,
+      color: 'text-blue-400',
+      trend: 'up'
+    },
+    {
+      id: '4',
+      title: 'Taux de satisfaction',
+      value: '94%',
+      change: 3,
+      icon: <Star className="w-5 h-5" />,
+      color: 'text-yellow-400',
+      trend: 'up'
+    }
+  ]);
+
+  const [communityAlerts] = useState<CommunityAlert[]>([
+    {
+      id: '1',
+      type: 'help',
+      title: 'Recherche de témoin - Vol de véhicule',
+      description: 'Vol de voiture blanche Toyota Corolla vers 18h, plaque immatriculation CD-123-AB',
+      author: 'Jean Mukendi',
+      time: 'Il y a 15 min',
+      location: 'Quartier Kalamu',
+      verified: true,
+      responses: 8
+    },
+    {
+      id: '2',
+      type: 'warning',
+      title: 'Zone dangereuse - Éviter Limete ce soir',
+      description: 'Manifestation prévue ce soir, circulation perturbée',
+      author: 'Police Locale',
+      time: 'Il y a 1h',
+      location: 'Avenue Limete',
+      verified: true,
+      responses: 23
+    },
+    {
+      id: '3',
+      type: 'info',
+      title: 'Centre médical temporaire ouvert',
+      description: 'Soins gratuits disponibles près du marché',
+      author: 'Croix-Rouge RDC',
+      time: 'Il y a 2h',
+      location: 'Marché Central',
+      verified: true,
+      responses: 15
+    }
+  ]);
+
+  const [weatherInfo] = useState<WeatherInfo>({
+    temperature: 28,
+    condition: 'cloudy',
+    humidity: 75,
+    windSpeed: 12,
+    uvIndex: 6,
+    airQuality: 'moderate'
+  });
+
+  const [emergencyContacts] = useState<EmergencyContact[]>([
+    {
+      id: '1',
+      name: 'Police Nationale',
+      type: 'police',
+      phone: '112',
+      responseTime: '8 min',
+      available: true
+    },
+    {
+      id: '2',
+      name: 'Hôpital Général',
+      type: 'hospital',
+      phone: '123456789',
+      responseTime: '12 min',
+      available: true
+    },
+    {
+      id: '3',
+      name: 'Services Ambulance',
+      type: 'ambulance',
+      phone: '999',
+      responseTime: '15 min',
+      available: true
+    },
+    {
+      id: '4',
+      name: 'Pompiers',
+      type: 'fire',
+      phone: '118',
+      responseTime: '10 min',
+      available: false
+    }
+  ]);
+
   const quickActions: QuickAction[] = [
     {
       id: '1',
       title: 'Appel d\'Urgence',
       icon: <Phone className="w-5 h-5" />,
       color: 'bg-red-600 hover:bg-red-700',
-      action: () => onNavigate?.('enhanced-map')
+      action: () => onNavigate?.('sos')
     },
     {
       id: '2',
-      title: 'Signaler Incident',
-      icon: <AlertTriangle className="w-5 h-5" />,
-      color: 'bg-orange-600 hover:bg-orange-700',
-      action: () => onNavigate?.('enhanced-map')
+      title: 'Localiser Numéro',
+      icon: <Navigation className="w-5 h-5" />,
+      color: 'bg-rose-600 hover:bg-rose-700',
+      action: () => onNavigate?.('phone-tracker')
     },
     {
       id: '3',
@@ -272,7 +452,29 @@ const EnhancedHomeScreen = ({ onNavigate }: NavigationProps) => {
       title: 'Trajet Sécurisé',
       icon: <Route className="w-5 h-5" />,
       color: 'bg-purple-600 hover:bg-purple-700',
-      action: () => onNavigate?.('enhanced-map')
+      action: () => onNavigate?.('safepath')
+    },
+    {
+      id: '6',
+      title: 'Signaler Incident',
+      icon: <AlertTriangle className="w-5 h-5" />,
+      color: 'bg-orange-600 hover:bg-orange-700',
+      action: () => onNavigate?.('incident-report')
+    },
+    {
+      id: '7',
+      title: 'Chat Communauté',
+      icon: <MessageSquare className="w-5 h-5" />,
+      color: 'bg-indigo-600 hover:bg-indigo-700',
+      action: () => onNavigate?.('community-chat'),
+      badge: 12
+    },
+    {
+      id: '8',
+      title: 'Centre Commande',
+      icon: <Target className="w-5 h-5" />,
+      color: 'bg-cyan-600 hover:bg-cyan-700',
+      action: () => onNavigate?.('command-center')
     }
   ];
 
@@ -349,7 +551,7 @@ const EnhancedHomeScreen = ({ onNavigate }: NavigationProps) => {
               key={location.id}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setSelectedLocation(location.id as any)}
+              onClick={() => setSelectedLocation(location.id as 'world' | 'drc' | 'kinshasa')}
               className={`flex items-center gap-1 px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                 selectedLocation === location.id 
                   ? 'bg-blue-600 text-white' 
@@ -391,6 +593,199 @@ const EnhancedHomeScreen = ({ onNavigate }: NavigationProps) => {
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto pb-20">
+        {/* Weather & Status Bar */}
+        <div className="p-3 sm:p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Weather Card */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-gradient-to-r from-blue-600/20 to-cyan-600/20 rounded-lg p-3 border border-blue-600/30"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Cloud className="w-4 h-4 text-blue-400" />
+                    <span className="text-sm font-medium text-white">Météo</span>
+                  </div>
+                  <div className="text-2xl font-bold text-white">{weatherInfo.temperature}°C</div>
+                  <div className="text-xs text-slate-300">
+                    Humidité: {weatherInfo.humidity}% • Vent: {weatherInfo.windSpeed}km/h
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    weatherInfo.airQuality === 'good' ? 'bg-green-600/20 text-green-400' :
+                    weatherInfo.airQuality === 'moderate' ? 'bg-yellow-600/20 text-yellow-400' :
+                    'bg-red-600/20 text-red-400'
+                  }`}>
+                    Qualité: {weatherInfo.airQuality === 'good' ? 'Bonne' : weatherInfo.airQuality === 'moderate' ? 'Modérée' : 'Mauvaise'}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* System Status Card */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-lg p-3 border border-green-600/30"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <ShieldCheck className="w-4 h-4 text-green-400" />
+                    <span className="text-sm font-medium text-white">Système</span>
+                  </div>
+                  <div className="text-lg font-bold text-white">Opérationnel</div>
+                  <div className="text-xs text-slate-300">
+                    Batterie: 85% • Signal: 4G
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                  <span className="text-xs text-green-400">Actif</span>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+
+        {/* Security Metrics */}
+        <div className="px-3 sm:px-4 mb-4">
+          <h2 className="text-base sm:text-lg font-bold text-white mb-2 sm:mb-3 flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
+            <span className="text-sm sm:text-base">Statistiques de Sécurité</span>
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+            {securityMetrics.map((metric, index) => (
+              <motion.div
+                key={metric.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="bg-slate-800/50 rounded-lg p-3 border border-slate-700"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className={metric.color}>{metric.icon}</div>
+                  <div className={`flex items-center gap-1 text-xs ${
+                    metric.trend === 'up' ? 'text-green-400' : 
+                    metric.trend === 'down' ? 'text-red-400' : 'text-slate-400'
+                  }`}>
+                    {metric.trend === 'up' ? '↑' : metric.trend === 'down' ? '↓' : '→'}
+                    <span>{Math.abs(metric.change)}%</span>
+                  </div>
+                </div>
+                <div className="text-lg font-bold text-white">{metric.value}</div>
+                <div className="text-xs text-slate-400">{metric.title}</div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+        {/* Emergency Contacts */}
+        <div className="px-3 sm:px-4 mb-4">
+          <h2 className="text-base sm:text-lg font-bold text-white mb-2 sm:mb-3 flex items-center gap-2">
+            <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
+            <span className="text-sm sm:text-base">Contacts d'Urgence</span>
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+            {emergencyContacts.map((contact) => (
+              <motion.div
+                key={contact.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className={`bg-slate-800/50 rounded-lg p-3 border border-slate-700 ${
+                  !contact.available ? 'opacity-50' : ''
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                      contact.type === 'police' ? 'bg-blue-600/20' :
+                      contact.type === 'hospital' ? 'bg-red-600/20' :
+                      contact.type === 'ambulance' ? 'bg-green-600/20' :
+                      'bg-orange-600/20'
+                    }`}>
+                      {contact.type === 'police' ? <Shield className="w-4 h-4 text-blue-400" /> :
+                       contact.type === 'hospital' ? <Hospital className="w-4 h-4 text-red-400" /> :
+                       contact.type === 'ambulance' ? <Ambulance className="w-4 h-4 text-green-400" /> :
+                       <Zap className="w-4 h-4 text-orange-400" />}
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-white">{contact.name}</div>
+                      <div className="text-xs text-slate-400">{contact.responseTime}</div>
+                    </div>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => window.location.href = `tel:${contact.phone}`}
+                    disabled={!contact.available}
+                    className={`p-2 rounded-lg ${
+                      contact.available 
+                        ? 'bg-green-600 hover:bg-green-700' 
+                        : 'bg-slate-600 cursor-not-allowed'
+                    }`}
+                  >
+                    <Phone className="w-3 h-3 text-white" />
+                  </motion.button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+        {/* Community Alerts */}
+        <div className="px-3 sm:px-4 mb-4">
+          <h2 className="text-base sm:text-lg font-bold text-white mb-2 sm:mb-3 flex items-center gap-2">
+            <Users className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-400" />
+            <span className="text-sm sm:text-base">Alertes Communautaires</span>
+          </h2>
+          <div className="space-y-2">
+            {communityAlerts.map((alert) => (
+              <motion.div
+                key={alert.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className={`p-3 rounded-lg border ${
+                  alert.type === 'help' ? 'bg-red-600/20 border-red-600/50' :
+                  alert.type === 'warning' ? 'bg-orange-600/20 border-orange-600/50' :
+                  alert.type === 'info' ? 'bg-blue-600/20 border-blue-600/50' :
+                  'bg-green-600/20 border-green-600/50'
+                }`}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold text-white text-sm">{alert.title}</h3>
+                      {alert.verified && (
+                        <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                          <CheckCircle className="w-2 h-2 text-white" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-300 mb-2">{alert.description}</p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs text-slate-400">
+                        <User className="w-3 h-3" />
+                        <span>{alert.author}</span>
+                        <MapPin className="w-3 h-3" />
+                        <span>{alert.location}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-slate-400">
+                        <MessageCircle className="w-3 h-3" />
+                        <span>{alert.responses}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
         {/* Quick Actions */}
         <div className="p-3 sm:p-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
@@ -412,6 +807,88 @@ const EnhancedHomeScreen = ({ onNavigate }: NavigationProps) => {
               </motion.button>
             ))}
           </div>
+        </div>
+
+        {/* ══════ PHONE TRACKER CARD ══════ */}
+        <div className="px-3 sm:px-4 mb-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileHover={{ scale: 1.01 }}
+            onClick={() => onNavigate?.('phone-tracker')}
+            className="cursor-pointer relative overflow-hidden bg-gradient-to-br from-red-900/60 via-rose-900/40 to-slate-900 border border-red-500/40 rounded-2xl p-4"
+          >
+            {/* Animated background dots */}
+            <div className="absolute inset-0 overflow-hidden">
+              {[...Array(6)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute w-1 h-1 bg-red-400/30 rounded-full"
+                  style={{ top: `${15 + i * 14}%`, left: `${60 + i * 5}%` }}
+                  animate={{ scale: [1, 2, 1], opacity: [0.3, 0.8, 0.3] }}
+                  transition={{ duration: 2 + i * 0.4, repeat: Infinity, delay: i * 0.3 }}
+                />
+              ))}
+            </div>
+
+            <div className="relative flex items-center gap-4">
+              {/* Icon animé */}
+              <div className="relative flex-shrink-0">
+                <motion.div
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="w-14 h-14 bg-gradient-to-br from-red-500 to-rose-700 rounded-2xl flex items-center justify-center shadow-lg shadow-red-900/50"
+                >
+                  <Phone className="w-7 h-7 text-white" />
+                </motion.div>
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-400 rounded-full animate-pulse border-2 border-slate-900" />
+              </div>
+
+              {/* Texte */}
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-white font-bold text-base">Localiser par Numéro</h3>
+                  <div className="px-2 py-0.5 bg-red-600/30 border border-red-500/40 rounded-full">
+                    <span className="text-red-300 text-[10px] font-bold uppercase tracking-wider">Actif</span>
+                  </div>
+                </div>
+                <p className="text-slate-300 text-xs leading-relaxed">
+                  Entrez un numéro de téléphone et localisez la personne sur la carte en temps réel
+                </p>
+                <div className="flex items-center gap-3 mt-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+                    <span className="text-green-400 text-[10px] font-medium">GPS Actif</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
+                    <span className="text-blue-400 text-[10px] font-medium">Réseau cellulaire</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse" />
+                    <span className="text-purple-400 text-[10px] font-medium">WiFi</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Arrow */}
+              <div className="flex-shrink-0">
+                <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center">
+                  <Navigation className="w-4 h-4 text-white" />
+                </div>
+              </div>
+            </div>
+
+            {/* Barre de progress simulée */}
+            <div className="relative mt-3 h-1 bg-white/10 rounded-full overflow-hidden">
+              <motion.div
+                className="absolute left-0 top-0 h-full bg-gradient-to-r from-red-500 to-rose-400 rounded-full"
+                animate={{ width: ['0%', '70%', '45%', '85%', '60%'] }}
+                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+              />
+            </div>
+            <p className="text-slate-500 text-[10px] mt-1">Triangulation du signal en cours...</p>
+          </motion.div>
         </div>
 
         {/* Security Alerts */}

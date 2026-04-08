@@ -3,13 +3,21 @@ export type ScreenType =
   | 'enhanced-home' 
   | 'enhanced-map' 
   | 'contacts' 
+  | 'alerts'
   | 'profile' 
   | 'sos'
   | 'guard' 
   | 'evidence' 
   | 'survival' 
   | 'firstaid' 
-  | 'snig';
+  | 'snig'
+  | 'safepath'
+  | 'incident-report'
+  | 'community-chat'
+  | 'phone-tracker'
+  | 'permissions'
+  | 'command-center'
+  | 'decoy';
 
 export interface NavigationProps {
   onNavigate?: (screen: ScreenType) => void;

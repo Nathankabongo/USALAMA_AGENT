@@ -87,7 +87,7 @@ const ContactsScreen = ({ onNavigate }: NavigationProps) => {
   });
 
   // Contacts enrichis avec toutes les nouvelles fonctionnalités
-  const [contacts] = useState<Contact[]>([
+  const [contacts, setContacts] = useState<Contact[]>([
     {
       id: '1',
       name: 'Papa',

@@ -22,13 +22,18 @@ import SNIGIntegration from './components/SNIGIntegration';
 import EnhancedMapScreen from './components/EnhancedMapScreen';
 import SOSScreen from './components/SOSScreen';
 import SafePath from './components/SafePath';
+import IncidentReportScreen from './components/IncidentReportScreen';
+import CommunityChatScreen from './components/CommunityChatScreen';
 import LoginScreen from './components/LoginScreen';
+import PhoneTrackerScreen from './components/PhoneTrackerScreen';
+import PermissionsScreen from './components/PermissionsScreen';
+import CommandCenterScreen from './components/CommandCenterScreen';
+import DecoyScreen from './components/DecoyScreen';
 import AuthProvider, { useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { initializeOfflineStorage } from './services/offlineStorage';
 import { useSentinelSOS } from './hooks/useSentinelSOS';
-
-type AppState = 'splash' | 'onboarding' | 'home' | 'enhanced-home' | 'contacts' | 'alerts' | 'profile' | 'guard' | 'evidence' | 'survival' | 'firstaid' | 'snig' | 'enhanced-map' | 'sos' | 'safepath';
+type AppState = 'splash' | 'onboarding' | 'home' | 'enhanced-home' | 'contacts' | 'alerts' | 'profile' | 'guard' | 'evidence' | 'survival' | 'firstaid' | 'snig' | 'enhanced-map' | 'sos' | 'safepath' | 'incident-report' | 'community-chat' | 'phone-tracker' | 'permissions' | 'command-center' | 'decoy';
 
 const queryClient = new QueryClient();
 
@@ -49,17 +54,23 @@ const App = () => {
         const onboardingComplete = localStorage.getItem('usalama_onboarding_complete');
         setHasSeenOnboarding(!!onboardingComplete);
         
-        // Simulate splash screen duration
+        // Simulate splash screen duration - augmenté à 5 secondes
         setTimeout(() => {
-          setAppState('enhanced-home'); // Démarrer directement sur l'accueil amélioré
-        }, 3000);
+          setAppState(hasSeenOnboarding ? 'enhanced-home' : 'onboarding');
+        }, 5000);
+        
       } catch (error) {
         console.error('App initialization failed:', error);
-        setAppState('enhanced-home');
       }
     };
 
     initializeApp();
+
+    const handleDecoy = () => {
+      setAppState('decoy');
+    };
+    window.addEventListener('trigger-decoy', handleDecoy);
+    return () => window.removeEventListener('trigger-decoy', handleDecoy);
   }, []);
 
   const handleOnboardingComplete = () => {
@@ -105,6 +116,18 @@ const App = () => {
         return <SOSScreen onNavigate={handleNavigation} />;
       case 'safepath':
         return <SafePath onNavigate={handleNavigation} />;
+      case 'incident-report':
+        return <IncidentReportScreen onNavigate={handleNavigation} />;
+      case 'community-chat':
+        return <CommunityChatScreen onNavigate={handleNavigation} />;
+      case 'phone-tracker':
+        return <PhoneTrackerScreen onBack={() => handleNavigation('enhanced-home')} />;
+      case 'permissions':
+        return <PermissionsScreen onBack={() => handleNavigation('enhanced-home')} onGrantAll={() => handleNavigation('enhanced-home')} />;
+      case 'command-center':
+        return <CommandCenterScreen onNavigate={handleNavigation} />;
+      case 'decoy':
+        return <DecoyScreen />;
       default:
         return <EnhancedHomeScreen onNavigate={handleNavigation} />;
     }
@@ -117,8 +140,8 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/usalama" element={
-              <div className="relative">
+            <Route path="/" element={
+              <div className="min-h-screen bg-slate-950 text-white w-full overflow-hidden">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={appState}
@@ -153,7 +176,7 @@ const App = () => {
               </div>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>

@@ -4,12 +4,12 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 export default defineConfig(({ mode }) => ({
-    base: "/cryptoflow/",
   server: {
     host: "::",
     port: 8080,
     open: true,
   },
+  base: "/USALAMA_AGENT/",
   plugins: [
     react(),
     mode === 'development' &&
