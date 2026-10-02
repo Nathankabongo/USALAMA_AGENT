@@ -163,7 +163,16 @@ const KinshasaMap = ({
 
     mapRef.current = map;
 
+    // Observer de redimensionnement (ajustement instantané lors de l'ouverture du volet Trajet)
+    const resizeObserver = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
     return () => {
+      resizeObserver.disconnect();
       map.remove();
       mapRef.current = null;
     };

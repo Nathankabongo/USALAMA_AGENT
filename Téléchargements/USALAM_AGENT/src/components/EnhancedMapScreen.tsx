@@ -902,171 +902,226 @@ const EnhancedMapScreen: React.FC<NavigationProps> = ({ onNavigate }) => {
       {/* ═══════════════════════════════════════════════════════════
           CARTE SATELLITE GOOGLE EARTH HYBRID (Forme et Présentation Réelle Intacte)
           ═══════════════════════════════════════════════════════════ */}
-      <div className="relative flex-1 w-full h-full pb-16">
-        <KinshasaMap
-          center={mapCenter}
-          zoom={mapZoom}
-          mapStyle={mapStyle}
-          markers={markers}
-          circles={circles}
-          polylines={polylines}
-          userPosition={userPos}
-          onMapClick={handleMapClick}
-          onMouseMove={(lat, lng) => setHoverCoords({ lat, lng })}
-          onMarkerClick={(m) => {
-            if (m.meta) {
-              setActiveSearchMarker(m.meta as SearchItem);
-            }
-          }}
-          className="w-full h-full"
-        />
-
-        {/* ── SÉLECTEUR D'ITINÉRAIRE SÉCURISÉ (Affiché au clic sur Trajet si aucun point n'est sélectionné) ── */}
+      {/* ═══════════════════════════════════════════════════════════
+          CONTENEUR SPLIT : VOLET GAUCHE (TRAJET) + CARTE RÉDUITE À DROITE
+          ═══════════════════════════════════════════════════════════ */}
+      <div className="relative flex-1 w-full h-full flex flex-col md:flex-row overflow-hidden pb-16">
+        
+        {/* ── VOLET LATÉRAL GAUCHE : DÉTAILS DU TRAJET / SÉLECTEUR (RÉDUIT LA CARTE) ── */}
         <AnimatePresence>
-          {showRouteSelector && !activeRoute && (
+          {(activeRoute || showRouteSelector) && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: -20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: -20 }}
-              className="absolute top-3 left-4 right-4 sm:left-6 sm:w-[400px] z-30 bg-slate-800/98 backdrop-blur-md border border-blue-500/50 rounded-xl p-3.5 shadow-2xl text-xs space-y-3"
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 'auto', opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: 'easeInOut' }}
+              className="w-full md:w-[380px] lg:w-[420px] flex-shrink-0 bg-slate-900/98 backdrop-blur-xl border-b md:border-b-0 md:border-r border-slate-700 flex flex-col z-30 shadow-2xl h-[45vh] md:h-full overflow-hidden"
             >
-              <div className="flex items-center justify-between border-b border-slate-700 pb-2">
+              {/* En-tête du volet Trajet */}
+              <div className="p-3.5 border-b border-slate-700 flex items-center justify-between bg-slate-800/80 flex-shrink-0">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-600/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
                     <Route className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-sm text-white">Calculer un Itinéraire Sécurisé</h3>
-                    <p className="text-[11px] text-slate-400">Sélectionnez une destination sécurisée à Kinshasa</p>
+                    <h2 className="font-bold text-sm text-white flex items-center gap-1.5">
+                      Itinéraire Sécurisé
+                      <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/20 text-emerald-300 rounded font-semibold">
+                        Kinshasa
+                      </span>
+                    </h2>
+                    <p className="text-[11px] text-slate-400">Contournement des ravins et voies inondables</p>
                   </div>
                 </div>
                 <button
-                  onClick={() => setShowRouteSelector(false)}
-                  className="p-1 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white"
+                  onClick={() => {
+                    setActiveRoute(null);
+                    setShowRouteSelector(false);
+                  }}
+                  className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                  title="Fermer le volet et agrandir la carte"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Point de départ */}
-              <div className="bg-slate-700/60 p-2 rounded-lg border border-slate-600 flex items-center gap-2 text-[11px]">
-                <span className="w-2.5 h-2.5 rounded-full bg-blue-400 flex-shrink-0 animate-pulse"></span>
-                <span className="text-slate-300">Point A (Départ) :</span>
-                <span className="font-bold text-white">Votre Position (Kinshasa)</span>
-              </div>
+              {/* Contenu Défilable du Volet Trajet */}
+              <div className="flex-1 overflow-y-auto p-3.5 space-y-3.5">
+                
+                {/* 1. Point de départ & Point d'arrivée */}
+                <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700 space-y-2">
+                  <div className="flex items-start gap-2.5">
+                    <div className="flex flex-col items-center gap-1 mt-1">
+                      <span className="w-3 h-3 rounded-full bg-blue-500 ring-4 ring-blue-500/20"></span>
+                      <span className="w-0.5 h-6 bg-slate-600"></span>
+                      <span className="w-3 h-3 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20"></span>
+                    </div>
+                    <div className="flex-1 space-y-2 text-xs">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-semibold">DÉPART (A) :</span>
+                        <span className="font-bold text-white">Votre Position Actuelle (Kinshasa)</span>
+                      </div>
+                      <div className="pt-1">
+                        <span className="text-[10px] text-slate-400 block font-semibold">DESTINATION (B) :</span>
+                        {activeRoute ? (
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-emerald-300 text-xs">{activeRoute.destinationName}</span>
+                            <button
+                              onClick={() => setShowRouteSelector(true)}
+                              className="text-[10px] text-blue-400 hover:text-blue-300 underline font-semibold"
+                            >
+                              Changer
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-amber-300 text-xs italic">Sélectionnez une destination ci-dessous</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-              {/* Destinations rapides suggérées */}
-              <div className="space-y-1.5">
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
-                  Destinations Sécurisées & Établissements :
-                </span>
-                <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
-                  {[
-                    KINSHASA_SEARCH_DB.find(i => i.id === 'hosp-sino') || KINSHASA_SEARCH_DB[0],
-                    KINSHASA_SEARCH_DB.find(i => i.id === 'hosp-cmk') || KINSHASA_SEARCH_DB[1],
-                    KINSHASA_SEARCH_DB.find(i => i.id === 'land-gare') || KINSHASA_SEARCH_DB[2],
-                    KINSHASA_SEARCH_DB.find(i => i.id === 'land-aeroport') || KINSHASA_SEARCH_DB[3],
-                    KINSHASA_SEARCH_DB.find(i => i.id === 'com-kalamu') || KINSHASA_SEARCH_DB[4],
-                    KINSHASA_SEARCH_DB.find(i => i.id === 'com-kintambo') || KINSHASA_SEARCH_DB[5],
-                  ].filter(Boolean).map((dest) => (
-                    <button
-                      key={dest.id}
-                      onClick={() => handleTraceRouteTo(dest)}
-                      className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-700/40 hover:bg-blue-600/30 hover:border-blue-500 border border-slate-700 transition-all text-left group"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{dest.category === 'hospital' ? '🏥' : dest.category === 'landmark' ? '📍' : '🏛️'}</span>
-                        <div>
-                          <div className="font-semibold text-white text-xs group-hover:text-blue-300">{dest.name}</div>
-                          <div className="text-[10px] text-slate-400">{dest.commune} • Alt. ~{dest.elevationM}m</div>
+                {/* 2. Si un trajet est actif : Métriques & Feuille de Route */}
+                {activeRoute && (
+                  <div className="space-y-3">
+                    {/* Cartes Métriques */}
+                    <div className="grid grid-cols-2 gap-2 font-mono text-xs">
+                      <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
+                        <span className="text-slate-400 block text-[10px]">Distance routière :</span>
+                        <span className="text-emerald-400 font-bold text-base">{activeRoute.distanceKm.toFixed(1)} km</span>
+                      </div>
+                      <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
+                        <span className="text-slate-400 block text-[10px]">Temps estimé (ETA) :</span>
+                        <span className="text-blue-400 font-bold text-base">~{activeRoute.durationMin} min</span>
+                      </div>
+                    </div>
+
+                    {/* Badge de sécurité */}
+                    <div className="flex items-center gap-2 p-2.5 bg-emerald-950/40 border border-emerald-500/40 rounded-xl text-xs text-emerald-200">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span>Trajet sécurisé : déviation automatique des ravins géologiques et bas-fonds inondables.</span>
+                    </div>
+
+                    {/* Étapes du trajet routier */}
+                    <div className="bg-slate-800/60 p-3 rounded-xl border border-slate-700 space-y-2">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Feuille de Route (Grands Axes) :
+                      </span>
+                      <div className="space-y-2 text-[11px] text-slate-300">
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-slate-700 text-blue-300 font-bold flex items-center justify-center text-[10px]">1</span>
+                          <span>Départ sur axe principal stabilisé</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-slate-700 text-blue-300 font-bold flex items-center justify-center text-[10px]">2</span>
+                          <span>Bifurcation sur grande artère (Triomphal / Lumumba / By-Pass)</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-slate-700 text-blue-300 font-bold flex items-center justify-center text-[10px]">3</span>
+                          <span>Voie de désenclavement sécurisée</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-emerald-600/30 text-emerald-300 font-bold flex items-center justify-center text-[10px]">4</span>
+                          <span className="font-semibold text-white">Arrivée : {activeRoute.destinationName}</span>
                         </div>
                       </div>
-                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-400" />
-                    </button>
-                  ))}
-                </div>
+                    </div>
+
+                    {/* Boutons d'Action du Guidage */}
+                    <div className="space-y-2 pt-1">
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                          setActiveRoute((prev) => prev ? { ...prev, isGuiding: !prev.isGuiding } : null);
+                        }}
+                        className={`w-full py-2.5 rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2 shadow-lg ${
+                          activeRoute.isGuiding
+                            ? 'bg-emerald-600 text-white animate-pulse'
+                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                        }`}
+                      >
+                        <Navigation2 className="w-4 h-4" />
+                        <span>{activeRoute.isGuiding ? 'Guidage en cours (Mode Suivi)' : 'Démarrer le guidage'}</span>
+                      </motion.button>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            const midLat = (activeRoute.origin[0] + activeRoute.destination[0]) / 2;
+                            const midLng = (activeRoute.origin[1] + activeRoute.destination[1]) / 2;
+                            setMapCenter([midLat, midLng]);
+                            setMapZoom(activeRoute.distanceKm < 5 ? 14 : 13);
+                          }}
+                          className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg text-xs font-medium"
+                        >
+                          Recentrer la vue
+                        </button>
+                        <button
+                          onClick={() => {
+                            setActiveRoute(null);
+                            setShowRouteSelector(false);
+                          }}
+                          className="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-rose-300 rounded-lg text-xs font-medium"
+                        >
+                          Quitter
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. Sélecteur de destination (Si showRouteSelector est vrai ou pas encore d'activeRoute) */}
+                {(!activeRoute || showRouteSelector) && (
+                  <div className="space-y-2 pt-1">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                      Choisir une Destination :
+                    </span>
+                    <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+                      {KINSHASA_SEARCH_DB.filter(i => i.category === 'hospital' || i.category === 'landmark' || i.category === 'commune').slice(0, 10).map((dest) => (
+                        <button
+                          key={dest.id}
+                          onClick={() => handleTraceRouteTo(dest)}
+                          className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-800/80 hover:bg-blue-600/30 hover:border-blue-500 border border-slate-700/80 transition-all text-left group"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-base">{dest.category === 'hospital' ? '🏥' : dest.category === 'landmark' ? '📍' : '🏛️'}</span>
+                            <div>
+                              <div className="font-semibold text-white text-xs group-hover:text-blue-300">{dest.name}</div>
+                              <div className="text-[10px] text-slate-400">{dest.commune} • Alt. ~{dest.elevationM}m</div>
+                            </div>
+                          </div>
+                          <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-400" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* ── BANNIÈRE DE TRAJET ACTIF (Intégration Trajet demandée) ── */}
-        <AnimatePresence>
-          {activeRoute && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="absolute top-3 left-4 right-4 sm:left-6 sm:w-[420px] z-30 bg-slate-800/95 backdrop-blur-md border border-emerald-500/50 rounded-xl p-3 shadow-2xl text-xs space-y-2.5"
-            >
-              <div className="flex items-center justify-between border-b border-slate-700 pb-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping"></div>
-                  <span className="font-bold text-sm text-emerald-400 flex items-center gap-1.5">
-                    <Route className="w-4 h-4" />
-                    Itinéraire Sécurisé Kinshasa
-                  </span>
-                </div>
-                <button
-                  onClick={() => setActiveRoute(null)}
-                  className="p-1 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-slate-200">
-                  <span className="text-slate-400 text-[11px]">Destination :</span>
-                  <span className="font-bold text-xs text-white">{activeRoute.destinationName}</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 pt-1 font-mono">
-                  <div className="bg-slate-700/80 p-2 rounded-lg border border-slate-600">
-                    <span className="text-slate-400 block text-[10px]">Distance routière :</span>
-                    <span className="text-emerald-400 font-bold text-sm">{activeRoute.distanceKm.toFixed(1)} km</span>
-                  </div>
-                  <div className="bg-slate-700/80 p-2 rounded-lg border border-slate-600">
-                    <span className="text-slate-400 block text-[10px]">Temps estimé (ETA) :</span>
-                    <span className="text-blue-400 font-bold text-sm">~{activeRoute.durationMin} min</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1.5 text-[11px] text-emerald-300 bg-emerald-950/40 border border-emerald-500/30 p-2 rounded-lg">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                  <span>Trajet vérifié : contournement des ravins et axes inondables.</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 pt-1">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => {
-                    setActiveRoute((prev) => prev ? { ...prev, isGuiding: !prev.isGuiding } : null);
-                  }}
-                  className={`flex-1 py-2 rounded-lg font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 ${
-                    activeRoute.isGuiding
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-blue-600 hover:bg-blue-700 text-white shadow'
-                  }`}
-                >
-                  <Navigation2 className={`w-3.5 h-3.5 ${activeRoute.isGuiding ? 'animate-pulse' : ''}`} />
-                  <span>{activeRoute.isGuiding ? 'Guidage en cours...' : 'Démarrer le guidage'}</span>
-                </motion.button>
-
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setActiveRoute(null)}
-                  className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg font-medium text-xs"
-                >
-                  Fermer
-                </motion.button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* ── CARTE SATELLITE RÉDUITE À DROITE (Taille flex-1 automatique sans conflit) ── */}
+        <div className="relative flex-1 h-full min-w-0">
+          <KinshasaMap
+            center={mapCenter}
+            zoom={mapZoom}
+            mapStyle={mapStyle}
+            markers={markers}
+            circles={circles}
+            polylines={polylines}
+            userPosition={userPos}
+            onMapClick={handleMapClick}
+            onMouseMove={(lat, lng) => setHoverCoords({ lat, lng })}
+            onMarkerClick={(m) => {
+              if (m.meta) {
+                setActiveSearchMarker(m.meta as SearchItem);
+              }
+            }}
+            className="w-full h-full"
+          />
 
         {/* ── MODAL HÔPITAL LE PLUS PROCHE (Intégration Hôpital demandée) ── */}
         <AnimatePresence>
@@ -1369,6 +1424,7 @@ const EnhancedMapScreen: React.FC<NavigationProps> = ({ onNavigate }) => {
             </motion.div>
           )}
         </AnimatePresence>
+        </div>
       </div>
 
       {/* Bottom Navigation */}
