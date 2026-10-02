@@ -256,6 +256,9 @@ const EnhancedMapScreen: React.FC<NavigationProps> = ({ onNavigate }) => {
     etaMin: number;
   } | null>(null);
 
+  // ── Sélecteur d'Itinéraire Dédié (Évite tout conflit visuel sur la carte) ──
+  const [showRouteSelector, setShowRouteSelector] = useState<boolean>(false);
+
   // Autocomplétion intelligente en temps réel
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -273,6 +276,11 @@ const EnhancedMapScreen: React.FC<NavigationProps> = ({ onNavigate }) => {
 
   // ── FONCTIONNALITÉ 1 : Trouver et tracer vers l'Hôpital le plus proche ──
   const handleFindNearestHospital = () => {
+    setShowRouteSelector(false);
+    setShowSitrepPanel(false);
+    setMeasureMode(false);
+    setActiveSearchMarker(null);
+
     const origin = userPos || mapCenter;
     const hospitals = KINSHASA_SEARCH_DB.filter((item) => item.category === 'hospital');
 
@@ -297,11 +305,15 @@ const EnhancedMapScreen: React.FC<NavigationProps> = ({ onNavigate }) => {
         etaMin,
       });
 
-      setActiveSearchMarker(nearest);
-      setMapCenter([nearest.lat, nearest.lng]);
-      setMapZoom(16);
+      // Cadrage adaptatif sans zoom excessif
+      const midLat = (origin[0] + nearest.lat) / 2;
+      const midLng = (origin[1] + nearest.lng) / 2;
+      const zoom = roadDist < 4 ? 14 : roadDist < 10 ? 13 : 12;
 
-      // Trace immédiatement le trajet sécurisé
+      setMapCenter([midLat, midLng]);
+      setMapZoom(zoom);
+
+      // Trace immédiatement le trajet sécurisé vers l'hôpital
       const routePoints = generateKinshasaSafeRoute(origin, [nearest.lat, nearest.lng]);
       setActiveRoute({
         origin,
@@ -315,8 +327,14 @@ const EnhancedMapScreen: React.FC<NavigationProps> = ({ onNavigate }) => {
     }
   };
 
-  // ── FONCTIONNALITÉ 2 : Tracer un Trajet Sécurisé vers la cible active ou un point ──
+  // ── FONCTIONNALITÉ 2 : Tracer un Trajet Sécurisé vers une destination cible ──
   const handleTraceRouteTo = (target: SearchItem) => {
+    setNearestHospitalModal(null);
+    setShowRouteSelector(false);
+    setShowSitrepPanel(false);
+    setMeasureMode(false);
+    setActiveSearchMarker(null); // Ferme la fiche du bas pour dégager la carte
+
     const origin = userPos || mapCenter;
     const directDist = calculateDistanceKm(origin[0], origin[1], target.lat, target.lng);
     const roadDist = Math.max(0.8, directDist * 1.25);
@@ -333,8 +351,34 @@ const EnhancedMapScreen: React.FC<NavigationProps> = ({ onNavigate }) => {
       isGuiding: false,
     });
 
-    setMapCenter([target.lat, target.lng]);
-    setMapZoom(15);
+    // Cadrage adaptatif sur le point médian pour voir l'ensemble du tracé
+    const midLat = (origin[0] + target.lat) / 2;
+    const midLng = (origin[1] + target.lng) / 2;
+    const zoom = roadDist < 4 ? 14 : roadDist < 10 ? 13 : 12;
+
+    setMapCenter([midLat, midLng]);
+    setMapZoom(zoom);
+  };
+
+  // ── FONCTIONNALITÉ 3 : Gestionnaire de clic du bouton Trajet (Résolution du conflit) ──
+  const handleToggleTrajet = () => {
+    // Si un trajet est déjà affiché, un clic ferme le trajet et libère la carte
+    if (activeRoute) {
+      setActiveRoute(null);
+      setShowRouteSelector(false);
+      return;
+    }
+
+    // Fermeture des autres panneaux pour éviter tout conflit d'affichage
+    setNearestHospitalModal(null);
+    setShowSitrepPanel(false);
+    setMeasureMode(false);
+
+    if (activeSearchMarker) {
+      handleTraceRouteTo(activeSearchMarker);
+    } else {
+      setShowRouteSelector((prev) => !prev);
+    }
   };
 
   // Validation d'une recherche
@@ -603,6 +647,23 @@ const EnhancedMapScreen: React.FC<NavigationProps> = ({ onNavigate }) => {
       weight: 5,
       opacity: 0.95,
     });
+
+    markers.push(
+      {
+        id: 'route-origin-marker',
+        lat: activeRoute.origin[0],
+        lng: activeRoute.origin[1],
+        type: 'user',
+        label: 'Départ (Vous)',
+      },
+      {
+        id: 'route-dest-marker',
+        lat: activeRoute.destination[0],
+        lng: activeRoute.destination[1],
+        type: 'safe',
+        label: `Arrivée : ${activeRoute.destinationName}`,
+      }
+    );
   }
 
   // Lien Google Earth 3D dynamique
@@ -740,19 +801,14 @@ const EnhancedMapScreen: React.FC<NavigationProps> = ({ onNavigate }) => {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => {
-              if (activeSearchMarker) {
-                handleTraceRouteTo(activeSearchMarker);
-              } else {
-                handleFindNearestHospital();
-              }
-            }}
+            onClick={handleToggleTrajet}
             className={`flex items-center gap-1 px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
-              activeRoute ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+              activeRoute || showRouteSelector ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-700 text-slate-400 hover:bg-slate-600 hover:text-white'
             }`}
+            title="Calculer un itinéraire sécurisé ou fermer le trajet actif"
           >
             <Route className="w-4 h-4" />
-            <span>Trajet</span>
+            <span>{activeRoute ? 'Fermer Trajet' : 'Trajet'}</span>
           </motion.button>
 
           <motion.button
@@ -865,6 +921,75 @@ const EnhancedMapScreen: React.FC<NavigationProps> = ({ onNavigate }) => {
           className="w-full h-full"
         />
 
+        {/* ── SÉLECTEUR D'ITINÉRAIRE SÉCURISÉ (Affiché au clic sur Trajet si aucun point n'est sélectionné) ── */}
+        <AnimatePresence>
+          {showRouteSelector && !activeRoute && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -20 }}
+              className="absolute top-3 left-4 right-4 sm:left-6 sm:w-[400px] z-30 bg-slate-800/98 backdrop-blur-md border border-blue-500/50 rounded-xl p-3.5 shadow-2xl text-xs space-y-3"
+            >
+              <div className="flex items-center justify-between border-b border-slate-700 pb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
+                    <Route className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-white">Calculer un Itinéraire Sécurisé</h3>
+                    <p className="text-[11px] text-slate-400">Sélectionnez une destination sécurisée à Kinshasa</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowRouteSelector(false)}
+                  className="p-1 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Point de départ */}
+              <div className="bg-slate-700/60 p-2 rounded-lg border border-slate-600 flex items-center gap-2 text-[11px]">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-400 flex-shrink-0 animate-pulse"></span>
+                <span className="text-slate-300">Point A (Départ) :</span>
+                <span className="font-bold text-white">Votre Position (Kinshasa)</span>
+              </div>
+
+              {/* Destinations rapides suggérées */}
+              <div className="space-y-1.5">
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                  Destinations Sécurisées & Établissements :
+                </span>
+                <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
+                  {[
+                    KINSHASA_SEARCH_DB.find(i => i.id === 'hosp-sino') || KINSHASA_SEARCH_DB[0],
+                    KINSHASA_SEARCH_DB.find(i => i.id === 'hosp-cmk') || KINSHASA_SEARCH_DB[1],
+                    KINSHASA_SEARCH_DB.find(i => i.id === 'land-gare') || KINSHASA_SEARCH_DB[2],
+                    KINSHASA_SEARCH_DB.find(i => i.id === 'land-aeroport') || KINSHASA_SEARCH_DB[3],
+                    KINSHASA_SEARCH_DB.find(i => i.id === 'com-kalamu') || KINSHASA_SEARCH_DB[4],
+                    KINSHASA_SEARCH_DB.find(i => i.id === 'com-kintambo') || KINSHASA_SEARCH_DB[5],
+                  ].filter(Boolean).map((dest) => (
+                    <button
+                      key={dest.id}
+                      onClick={() => handleTraceRouteTo(dest)}
+                      className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-700/40 hover:bg-blue-600/30 hover:border-blue-500 border border-slate-700 transition-all text-left group"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{dest.category === 'hospital' ? '🏥' : dest.category === 'landmark' ? '📍' : '🏛️'}</span>
+                        <div>
+                          <div className="font-semibold text-white text-xs group-hover:text-blue-300">{dest.name}</div>
+                          <div className="text-[10px] text-slate-400">{dest.commune} • Alt. ~{dest.elevationM}m</div>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-400" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* ── BANNIÈRE DE TRAJET ACTIF (Intégration Trajet demandée) ── */}
         <AnimatePresence>
           {activeRoute && (
@@ -872,7 +997,7 @@ const EnhancedMapScreen: React.FC<NavigationProps> = ({ onNavigate }) => {
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="absolute top-3 left-4 right-4 sm:left-6 sm:w-[420px] z-20 bg-slate-800/95 backdrop-blur-md border border-emerald-500/50 rounded-xl p-3 shadow-2xl text-xs space-y-2.5"
+              className="absolute top-3 left-4 right-4 sm:left-6 sm:w-[420px] z-30 bg-slate-800/95 backdrop-blur-md border border-emerald-500/50 rounded-xl p-3 shadow-2xl text-xs space-y-2.5"
             >
               <div className="flex items-center justify-between border-b border-slate-700 pb-2">
                 <div className="flex items-center gap-2">
@@ -1130,7 +1255,7 @@ const EnhancedMapScreen: React.FC<NavigationProps> = ({ onNavigate }) => {
 
         {/* ── Fiche de Résultat de Recherche Cohérente ── */}
         <AnimatePresence>
-          {activeSearchMarker && (
+          {activeSearchMarker && !activeRoute && (
             <motion.div
               initial={{ opacity: 0, y: 30, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
