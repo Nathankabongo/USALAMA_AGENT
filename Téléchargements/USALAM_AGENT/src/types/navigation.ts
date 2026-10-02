@@ -17,7 +17,8 @@ export type ScreenType =
   | 'phone-tracker'
   | 'permissions'
   | 'command-center'
-  | 'decoy';
+  | 'decoy'
+  | 'forensic-osint';
 
 export interface NavigationProps {
   onNavigate?: (screen: ScreenType) => void;

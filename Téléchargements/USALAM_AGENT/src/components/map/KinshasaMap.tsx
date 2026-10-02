@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 
-// Fix des icônes Leaflet avec Vite/Webpack
+// Fix des icônes Leaflet avec Vite
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -9,16 +9,19 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-export type MapStyle = 'dark' | 'standard' | 'satellite';
+export type MapStyle = 'google-hybrid' | 'satellite' | 'standard' | 'topo' | 'dark';
 
 export interface MapMarker {
   id: string;
   lat: number;
   lng: number;
-  type: 'user' | 'safe' | 'danger' | 'destination';
+  type: 'search' | 'erosion' | 'inondation' | 'pente' | 'hospital' | 'police' | 'safe' | 'danger' | 'user';
   label?: string;
+  sublabel?: string;
   color?: string;
   icon?: string;
+  severity?: string;
+  meta?: Record<string, any>;
 }
 
 export interface MapCircle {
@@ -28,6 +31,9 @@ export interface MapCircle {
   radius: number;
   color: string;
   fillColor: string;
+  fillOpacity?: number;
+  weight?: number;
+  dashArray?: string;
   label?: string;
 }
 
@@ -37,6 +43,7 @@ export interface MapPolyline {
   color: string;
   weight?: number;
   dashArray?: string;
+  opacity?: number;
 }
 
 interface KinshasaMapProps {
@@ -50,28 +57,47 @@ interface KinshasaMapProps {
   userHeading?: number;
   movementTrail?: [number, number][];
   onMapClick?: (lat: number, lng: number) => void;
+  onMarkerClick?: (marker: MapMarker) => void;
+  onMouseMove?: (lat: number, lng: number) => void;
+  onViewChange?: (center: [number, number], zoom: number) => void;
   className?: string;
 }
 
-const TILE_LAYERS: Record<MapStyle, { url: string; attribution: string }> = {
-  dark: {
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
+// Fournisseurs de tuiles Google Earth et cartographiques réels (100% sans filigrane)
+const TILE_LAYERS: Record<MapStyle, { url: string; attribution: string; subdomains?: string[] }> = {
+  // Google Earth Satellite Hybride (Imagerie réelle Google Earth + Noms des rues et communes)
+  'google-hybrid': {
+    url: 'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+    attribution: '© Google Earth / Google Maps',
+    subdomains: ['0', '1', '2', '3'],
   },
-  standard: {
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  },
+  // Vue Satellite ArcGIS World Imagery
   satellite: {
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     attribution: '© Esri, Maxar, Earthstar Geographics',
   },
+  // Vue Plan des Rues & Quartiers (OpenStreetMap)
+  standard: {
+    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '© OpenStreetMap contributors',
+  },
+  // Relief & Topographie Géologique (Google Terrain)
+  topo: {
+    url: 'https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
+    attribution: '© Google Terrain',
+    subdomains: ['0', '1', '2', '3'],
+  },
+  // Mode Sombre
+  dark: {
+    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '© OpenStreetMap contributors',
+  },
 };
 
 const KinshasaMap = ({
-  center = [-4.4419, 15.2663],
+  center = [-4.4071, 15.3252], // Coordonnées exactes de Kinshasa (centrées comme sur Google Earth)
   zoom = 13,
-  mapStyle = 'dark',
+  mapStyle = 'google-hybrid',
   markers = [],
   circles = [],
   polylines = [],
@@ -79,18 +105,29 @@ const KinshasaMap = ({
   userHeading = 0,
   movementTrail = [],
   onMapClick,
+  onMarkerClick,
+  onMouseMove,
+  onViewChange,
   className = '',
 }: KinshasaMapProps) => {
   const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
-  const markersRef = useRef<Map<string, L.Marker | L.CircleMarker>>(new Map());
+  const markersRef = useRef<Map<string, L.Marker>>(new Map());
   const circlesRef = useRef<Map<string, L.Circle>>(new Map());
   const polylinesRef = useRef<Map<string, L.Polyline>>(new Map());
   const userMarkerRef = useRef<L.Marker | null>(null);
-  const trailRef = useRef<L.Polyline | null>(null);
 
-  // Initialisation de la carte
+  const onMapClickRef = useRef(onMapClick);
+  onMapClickRef.current = onMapClick;
+
+  const onMouseMoveRef = useRef(onMouseMove);
+  onMouseMoveRef.current = onMouseMove;
+
+  const onViewChangeRef = useRef(onViewChange);
+  onViewChangeRef.current = onViewChange;
+
+  // Initialisation de la carte Leaflet
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
@@ -99,19 +136,30 @@ const KinshasaMap = ({
       zoom,
       zoomControl: false,
       attributionControl: true,
+      minZoom: 10,
+      maxZoom: 20,
     });
 
-    const tile = TILE_LAYERS[mapStyle];
+    const activeTileKey = TILE_LAYERS[mapStyle] ? mapStyle : 'google-hybrid';
+    const tile = TILE_LAYERS[activeTileKey];
     tileLayerRef.current = L.tileLayer(tile.url, {
       attribution: tile.attribution,
-      maxZoom: 19,
+      maxZoom: 20,
+      subdomains: tile.subdomains || 'abc',
     }).addTo(map);
 
-    if (onMapClick) {
-      map.on('click', (e) => {
-        onMapClick(e.latlng.lat, e.latlng.lng);
-      });
-    }
+    map.on('click', (e) => {
+      onMapClickRef.current?.(e.latlng.lat, e.latlng.lng);
+    });
+
+    map.on('mousemove', (e) => {
+      onMouseMoveRef.current?.(e.latlng.lat, e.latlng.lng);
+    });
+
+    map.on('moveend', () => {
+      const c = map.getCenter();
+      onViewChangeRef.current?.([c.lat, c.lng], map.getZoom());
+    });
 
     mapRef.current = map;
 
@@ -121,30 +169,36 @@ const KinshasaMap = ({
     };
   }, []);
 
-  // Mise à jour du style de la carte
+  // Changement de style (Google Satellite Hybride, Satellite Esri, Rues, Topo)
   useEffect(() => {
     if (!mapRef.current) return;
     if (tileLayerRef.current) {
       mapRef.current.removeLayer(tileLayerRef.current);
     }
-    const tile = TILE_LAYERS[mapStyle];
+    const activeTileKey = TILE_LAYERS[mapStyle] ? mapStyle : 'google-hybrid';
+    const tile = TILE_LAYERS[activeTileKey];
     tileLayerRef.current = L.tileLayer(tile.url, {
       attribution: tile.attribution,
-      maxZoom: 19,
+      maxZoom: 20,
+      subdomains: tile.subdomains || 'abc',
     }).addTo(mapRef.current);
   }, [mapStyle]);
 
-  // Mise à jour du centre et zoom
+  // Centrage dynamique et animation fluide façon Google Earth
   useEffect(() => {
     if (!mapRef.current) return;
-    mapRef.current.setView(center, zoom, { animate: true });
+    const current = mapRef.current.getCenter();
+    const currZoom = mapRef.current.getZoom();
+    const dist = Math.hypot(current.lat - center[0], current.lng - center[1]);
+    if (dist > 0.0001 || currZoom !== zoom) {
+      mapRef.current.flyTo(center, zoom, { duration: 1.5, easeLinearity: 0.25 });
+    }
   }, [center[0], center[1], zoom]);
 
-  // Gestion des marqueurs
+  // Marqueurs géologiques, de recherche et urbains de Kinshasa
   useEffect(() => {
     if (!mapRef.current) return;
 
-    // Supprimer les anciens marqueurs qui ne sont plus présents
     markersRef.current.forEach((marker, id) => {
       if (!markers.find(m => m.id === id)) {
         mapRef.current!.removeLayer(marker);
@@ -152,75 +206,148 @@ const KinshasaMap = ({
       }
     });
 
-    // Ajouter/mettre à jour les nouveaux marqueurs
     markers.forEach(m => {
       const existing = markersRef.current.get(m.id);
       if (existing) {
-        (existing as L.Marker).setLatLng([m.lat, m.lng]);
+        existing.setLatLng([m.lat, m.lng]);
         return;
       }
 
-      let marker: L.Marker | L.CircleMarker;
+      let iconHtml = '';
+      let iconSize: [number, number] = [38, 38];
+      let iconAnchor: [number, number] = [19, 19];
 
-      if (m.type === 'safe') {
-        const icon = L.divIcon({
-          html: `<div style="
-            width: 32px; height: 32px; 
-            background: ${m.color || '#22c55e'}; 
-            border: 3px solid white; 
-            border-radius: 50%; 
-            display: flex; align-items: center; justify-content: center;
-            font-size: 14px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-          ">${m.icon || '🏥'}</div>`,
-          className: '',
-          iconSize: [32, 32],
-          iconAnchor: [16, 16],
-        });
-        marker = L.marker([m.lat, m.lng], { icon });
-      } else if (m.type === 'danger') {
-        const icon = L.divIcon({
-          html: `<div style="
-            width: 28px; height: 28px;
-            background: ${m.color || '#ef4444'};
-            border: 2px solid white;
-            border-radius: 4px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 12px;
-            box-shadow: 0 2px 8px rgba(239,68,68,0.6);
-          ">⚠️</div>`,
-          className: '',
-          iconSize: [28, 28],
-          iconAnchor: [14, 14],
-        });
-        marker = L.marker([m.lat, m.lng], { icon });
-      } else {
-        const icon = L.divIcon({
-          html: `<div style="
-            width: 30px; height: 30px;
-            background: #3b82f6;
-            border: 2px solid white;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 12px;
-            box-shadow: 0 2px 8px rgba(59,130,246,0.6);
-          ">${m.icon || '📍'}</div>`,
-          className: '',
-          iconSize: [30, 30],
-          iconAnchor: [15, 15],
-        });
-        marker = L.marker([m.lat, m.lng], { icon });
+      switch (m.type) {
+        case 'search':
+          // Marqueur spécifique pour le résultat de recherche utilisateur
+          iconSize = [48, 54];
+          iconAnchor = [24, 52];
+          iconHtml = `
+            <div class="relative flex flex-col items-center cursor-pointer">
+              <div class="absolute bottom-0 w-8 h-2.5 bg-blue-500/50 rounded-full animate-ping"></div>
+              <div class="w-10 h-10 rounded-full bg-blue-600 border-2 border-white shadow-2xl flex items-center justify-center text-white text-lg">
+                📍
+              </div>
+              ${m.label ? `<div class="mt-1 whitespace-nowrap px-2.5 py-0.5 rounded-full bg-slate-900/95 border border-blue-400 text-xs font-bold text-white shadow-xl">${m.label}</div>` : ''}
+            </div>
+          `;
+          break;
+
+        case 'erosion':
+          // Tête d'érosion / ravinement géologique
+          iconSize = [42, 42];
+          iconAnchor = [21, 21];
+          iconHtml = `
+            <div class="relative flex items-center justify-center cursor-pointer">
+              <div class="absolute inset-0 rounded-full bg-red-600/40 animate-ping"></div>
+              <div class="relative w-8 h-8 rounded-full bg-red-600 border-2 border-white flex items-center justify-center shadow-lg text-white font-bold text-sm">
+                ⚠️
+              </div>
+              ${m.label ? `<div class="absolute -bottom-4 whitespace-nowrap px-1.5 py-0.5 rounded bg-slate-900/90 border border-red-500/50 text-[10px] text-red-200 font-semibold shadow">${m.label}</div>` : ''}
+            </div>
+          `;
+          break;
+
+        case 'inondation':
+          // Zone inondable / bassin hydrographique
+          iconSize = [40, 40];
+          iconAnchor = [20, 20];
+          iconHtml = `
+            <div class="relative flex items-center justify-center cursor-pointer">
+              <div class="absolute inset-0 rounded-full bg-blue-500/30 animate-pulse"></div>
+              <div class="relative w-8 h-8 rounded-full bg-blue-600 border-2 border-white flex items-center justify-center shadow-lg text-white font-bold text-sm">
+                🌊
+              </div>
+              ${m.label ? `<div class="absolute -bottom-4 whitespace-nowrap px-1.5 py-0.5 rounded bg-slate-900/90 border border-blue-500/50 text-[10px] text-blue-200 font-semibold shadow">${m.label}</div>` : ''}
+            </div>
+          `;
+          break;
+
+        case 'pente':
+          // Pente instable / colline
+          iconSize = [38, 38];
+          iconAnchor = [19, 19];
+          iconHtml = `
+            <div class="relative flex items-center justify-center cursor-pointer">
+              <div class="relative w-7 h-7 rounded-full bg-amber-600 border-2 border-white flex items-center justify-center shadow-lg text-white text-xs">
+                🏔️
+              </div>
+              ${m.label ? `<div class="absolute -bottom-4 whitespace-nowrap px-1 py-0.5 rounded bg-slate-900/90 border border-amber-500/50 text-[10px] text-amber-200 font-semibold shadow">${m.label}</div>` : ''}
+            </div>
+          `;
+          break;
+
+        case 'hospital':
+        case 'safe':
+          iconSize = [38, 38];
+          iconAnchor = [19, 19];
+          iconHtml = `
+            <div class="relative flex items-center justify-center cursor-pointer">
+              <div class="relative w-8 h-8 rounded-full bg-emerald-600 border-2 border-white flex items-center justify-center shadow-lg text-white text-xs">
+                🏥
+              </div>
+              ${m.label ? `<div class="absolute -bottom-4 whitespace-nowrap px-1.5 py-0.5 rounded bg-slate-900/90 border border-emerald-500/50 text-[10px] text-emerald-200 font-semibold shadow">${m.label}</div>` : ''}
+            </div>
+          `;
+          break;
+
+        case 'police':
+          iconSize = [38, 38];
+          iconAnchor = [19, 19];
+          iconHtml = `
+            <div class="relative flex items-center justify-center cursor-pointer">
+              <div class="relative w-8 h-8 rounded-full bg-indigo-600 border-2 border-white flex items-center justify-center shadow-lg text-white text-xs">
+                👮
+              </div>
+              ${m.label ? `<div class="absolute -bottom-4 whitespace-nowrap px-1.5 py-0.5 rounded bg-slate-900/90 border border-indigo-500/50 text-[10px] text-indigo-200 font-semibold shadow">${m.label}</div>` : ''}
+            </div>
+          `;
+          break;
+
+        default:
+          iconSize = [34, 34];
+          iconAnchor = [17, 17];
+          iconHtml = `
+            <div class="relative flex items-center justify-center cursor-pointer">
+              <div class="w-7 h-7 rounded-full bg-blue-600 border-2 border-white flex items-center justify-center text-xs text-white shadow">
+                ${m.icon || '📍'}
+              </div>
+              ${m.label ? `<div class="absolute -bottom-4 whitespace-nowrap px-1.5 py-0.5 rounded bg-slate-900/90 text-[10px] text-white font-medium">${m.label}</div>` : ''}
+            </div>
+          `;
       }
 
-      if (m.label) {
-        (marker as L.Marker).bindPopup(`<b>${m.label}</b>`, { className: 'usalama-popup' });
+      const customIcon = L.divIcon({
+        html: iconHtml,
+        className: 'usalama-custom-marker',
+        iconSize,
+        iconAnchor,
+      });
+
+      const marker = L.marker([m.lat, m.lng], { icon: customIcon });
+
+      marker.on('click', () => {
+        if (onMarkerClick) {
+          onMarkerClick(m);
+        }
+      });
+
+      if (m.label || m.sublabel) {
+        marker.bindPopup(`
+          <div class="p-1 text-slate-100">
+            <div class="font-bold text-sm text-blue-400">${m.label || ''}</div>
+            ${m.sublabel ? `<div class="text-xs text-slate-300 mt-0.5">${m.sublabel}</div>` : ''}
+            ${m.severity ? `<div class="text-[11px] font-semibold text-red-400 mt-1">Niveau de risque: ${m.severity}</div>` : ''}
+          </div>
+        `, { className: 'usalama-leaflet-popup' });
       }
+
       marker.addTo(mapRef.current!);
       markersRef.current.set(m.id, marker);
     });
   }, [markers]);
 
-  // Gestion des cercles
+  // Cercles géologiques (zones d'érosion, périmètres inondables)
   useEffect(() => {
     if (!mapRef.current) return;
     circlesRef.current.forEach((c, id) => {
@@ -235,15 +362,16 @@ const KinshasaMap = ({
         radius: c.radius,
         color: c.color,
         fillColor: c.fillColor,
-        fillOpacity: 0.25,
-        weight: 2,
+        fillOpacity: c.fillOpacity ?? 0.25,
+        weight: c.weight ?? 2,
+        dashArray: c.dashArray,
       }).addTo(mapRef.current!);
-      if (c.label) circle.bindPopup(c.label);
+      if (c.label) circle.bindPopup(`<div class="text-xs font-semibold">${c.label}</div>`);
       circlesRef.current.set(c.id, circle);
     });
   }, [circles]);
 
-  // Gestion des polylines
+  // Polylines (cours d'eau, fleuve, trajets)
   useEffect(() => {
     if (!mapRef.current) return;
     polylinesRef.current.forEach((p, id) => {
@@ -261,110 +389,42 @@ const KinshasaMap = ({
         color: pl.color,
         weight: pl.weight || 4,
         dashArray: pl.dashArray,
-        lineCap: 'round',
-        lineJoin: 'round',
+        opacity: pl.opacity ?? 0.9,
       }).addTo(mapRef.current!);
       polylinesRef.current.set(pl.id, line);
     });
   }, [polylines]);
 
-  // Marqueur utilisateur animé
+  // Position utilisateur
   useEffect(() => {
     if (!mapRef.current) return;
-
     if (userMarkerRef.current) {
       mapRef.current.removeLayer(userMarkerRef.current);
       userMarkerRef.current = null;
     }
-
     if (!userPosition) return;
 
     const userIcon = L.divIcon({
       html: `
-        <div style="position:relative; width:40px; height:40px;">
-          <div style="
-            position:absolute; inset:0;
-            background:rgba(59,130,246,0.3);
-            border-radius:50%;
-            animation: userPulse 2s ease-out infinite;
-          "></div>
-          <div style="
-            position:absolute; top:50%; left:50%;
-            transform: translate(-50%,-50%) rotate(${userHeading}deg);
-            width:20px; height:20px;
-            background:#3b82f6;
-            border:3px solid white;
-            border-radius:50%;
-            box-shadow: 0 0 0 3px rgba(59,130,246,0.4);
-          ">
-            <div style="
-              position:absolute; top:-8px; left:50%;
-              transform:translateX(-50%);
-              width:0; height:0;
-              border-left:5px solid transparent;
-              border-right:5px solid transparent;
-              border-bottom:8px solid #3b82f6;
-            "></div>
-          </div>
+        <div class="relative w-8 h-8 flex items-center justify-center">
+          <div class="absolute inset-0 rounded-full bg-blue-500/40 animate-ping"></div>
+          <div class="relative w-4 h-4 rounded-full bg-blue-500 border-2 border-white shadow-xl"></div>
         </div>
       `,
       className: '',
-      iconSize: [40, 40],
-      iconAnchor: [20, 20],
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
     });
 
     userMarkerRef.current = L.marker(userPosition, { icon: userIcon, zIndexOffset: 1000 })
       .addTo(mapRef.current)
-      .bindPopup('<b>📍 Votre position</b>');
-  }, [userPosition, userHeading]);
-
-  // Traîne de déplacement
-  useEffect(() => {
-    if (!mapRef.current) return;
-    if (trailRef.current) {
-      mapRef.current.removeLayer(trailRef.current);
-      trailRef.current = null;
-    }
-    if (movementTrail.length < 2) return;
-    trailRef.current = L.polyline(movementTrail, {
-      color: '#60a5fa',
-      weight: 3,
-      opacity: 0.6,
-      dashArray: '6, 4',
-    }).addTo(mapRef.current);
-  }, [movementTrail]);
+      .bindPopup('<b class="text-xs">Votre position GPS</b>');
+  }, [userPosition]);
 
   return (
-    <>
-      <style>{`
-        @keyframes userPulse {
-          0% { transform: scale(0.8); opacity: 0.9; }
-          70% { transform: scale(2.5); opacity: 0; }
-          100% { transform: scale(0.8); opacity: 0; }
-        }
-        .leaflet-popup-content-wrapper {
-          background: #1e293b !important;
-          color: white !important;
-          border: 1px solid #334155 !important;
-          border-radius: 12px !important;
-        }
-        .leaflet-popup-tip {
-          background: #1e293b !important;
-        }
-        .leaflet-popup-close-button {
-          color: #94a3b8 !important;
-        }
-        .leaflet-control-attribution {
-          background: rgba(15,23,42,0.8) !important;
-          color: #64748b !important;
-          font-size: 9px !important;
-        }
-        .leaflet-control-attribution a {
-          color: #3b82f6 !important;
-        }
-      `}</style>
+    <div className="relative w-full h-full overflow-hidden bg-slate-950">
       <div ref={containerRef} className={`w-full h-full ${className}`} />
-    </>
+    </div>
   );
 };
 

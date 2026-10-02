@@ -47,7 +47,11 @@ import {
   Flashlight,
   Stethoscope,
   Ambulance,
-  Hospital
+  Hospital,
+  Fingerprint,
+  EyeOff,
+  ShieldAlert,
+  ChevronRight
 } from 'lucide-react';
 
 import { NavigationProps, navigationItems, ScreenType } from '../types/navigation';
@@ -419,13 +423,6 @@ const EnhancedHomeScreen = ({ onNavigate }: NavigationProps) => {
 
   const quickActions: QuickAction[] = [
     {
-      id: '1',
-      title: 'Appel d\'Urgence',
-      icon: <Phone className="w-5 h-5" />,
-      color: 'bg-red-600 hover:bg-red-700',
-      action: () => onNavigate?.('sos')
-    },
-    {
       id: '2',
       title: 'Localiser Numéro',
       icon: <Navigation className="w-5 h-5" />,
@@ -439,13 +436,6 @@ const EnhancedHomeScreen = ({ onNavigate }: NavigationProps) => {
       color: 'bg-green-600 hover:bg-green-700',
       action: () => onNavigate?.('enhanced-map'),
       badge: 3
-    },
-    {
-      id: '4',
-      title: 'Carte Sécurité',
-      icon: <Map className="w-5 h-5" />,
-      color: 'bg-blue-600 hover:bg-blue-700',
-      action: () => onNavigate?.('enhanced-map')
     },
     {
       id: '5',
@@ -468,6 +458,21 @@ const EnhancedHomeScreen = ({ onNavigate }: NavigationProps) => {
       color: 'bg-indigo-600 hover:bg-indigo-700',
       action: () => onNavigate?.('community-chat'),
       badge: 12
+    },
+    {
+      id: 'forensic',
+      title: 'Forensic & OSINT',
+      icon: <Fingerprint className="w-5 h-5" />,
+      color: 'bg-emerald-600 hover:bg-emerald-700',
+      action: () => onNavigate?.('forensic-osint'),
+      badge: 3
+    },
+    {
+      id: 'decoy',
+      title: 'Mode Furtif',
+      icon: <EyeOff className="w-5 h-5" />,
+      color: 'bg-amber-600 hover:bg-amber-700',
+      action: () => onNavigate?.('decoy')
     },
     {
       id: '8',
@@ -888,6 +893,48 @@ const EnhancedHomeScreen = ({ onNavigate }: NavigationProps) => {
               />
             </div>
             <p className="text-slate-500 text-[10px] mt-1">Triangulation du signal en cours...</p>
+          </motion.div>
+        </div>
+
+        {/* ══════ FORENSIC & OSINT ANTI-CRIME CARD ══════ */}
+        <div className="px-3 sm:px-4 mb-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileHover={{ scale: 1.01 }}
+            onClick={() => onNavigate?.('forensic-osint')}
+            className="cursor-pointer relative overflow-hidden bg-gradient-to-br from-emerald-950/70 via-slate-900 to-slate-900 border border-emerald-500/40 rounded-2xl p-4 shadow-xl"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-700 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-900/50 flex-shrink-0">
+                <Fingerprint className="w-7 h-7 text-white" />
+              </div>
+
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-white font-bold text-base">Forensic & OSINT Anti-Crime</h3>
+                  <div className="px-2 py-0.5 bg-emerald-600/30 border border-emerald-500/40 rounded-full">
+                    <span className="text-emerald-300 text-[10px] font-bold uppercase tracking-wider">Judiciaire</span>
+                  </div>
+                </div>
+                <p className="text-slate-300 text-xs leading-relaxed">
+                  Scellés numériques probants (SHA-256), vérificateur de numéros suspects & taxis d'enlèvement à Kinshasa
+                </p>
+                <div className="flex items-center gap-3 mt-2 text-[10px] text-emerald-400 font-medium">
+                  <span>🔒 Chaîne de garde</span>
+                  <span>•</span>
+                  <span>🕵️ Enquêtes ouvertes</span>
+                  <span>•</span>
+                  <span>📄 Fiche Dépôt de Plainte</span>
+                </div>
+              </div>
+
+              <div className="flex-shrink-0">
+                <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center">
+                  <ChevronRight className="w-4 h-4 text-white" />
+                </div>
+              </div>
+            </div>
           </motion.div>
         </div>
 

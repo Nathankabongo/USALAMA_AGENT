@@ -267,3 +267,97 @@
     }
   }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   OSIRIS TACTICAL HUD & MILITARY RECON MAP STYLES
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes radar-sweep {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes tactical-pulse {
+  0% { transform: scale(0.95); opacity: 0.9; box-shadow: 0 0 0 0 rgba(0, 229, 255, 0.7); }
+  70% { transform: scale(1.15); opacity: 0.3; box-shadow: 0 0 0 16px rgba(0, 229, 255, 0); }
+  100% { transform: scale(0.95); opacity: 0.9; box-shadow: 0 0 0 0 rgba(0, 229, 255, 0); }
+}
+
+@keyframes red-threat-pulse {
+  0% { transform: scale(0.95); opacity: 0.9; box-shadow: 0 0 0 0 rgba(255, 61, 87, 0.7); }
+  70% { transform: scale(1.25); opacity: 0.2; box-shadow: 0 0 0 20px rgba(255, 61, 87, 0); }
+  100% { transform: scale(0.95); opacity: 0.9; box-shadow: 0 0 0 0 rgba(255, 61, 87, 0); }
+}
+
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(1000%); }
+}
+
+.radar-sweep-beam {
+  animation: radar-sweep 4s linear infinite;
+  transform-origin: center center;
+}
+
+.tactical-pulse-cyan {
+  animation: tactical-pulse 2s infinite;
+}
+
+.tactical-pulse-red {
+  animation: red-threat-pulse 1.8s infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   WATERMARK-FREE TACTICAL TILE FILTERS (OSM / ESRI)
+   ═══════════════════════════════════════════════════════════ */
+
+/* Dark Tactical: Inverts standard OSM into deep cyber/tactical dark basemap */
+.map-dark-tiles .leaflet-tile {
+  filter: brightness(0.65) invert(1) contrast(2.8) hue-rotate(195deg) saturate(0.4) !important;
+}
+
+/* Vision Nocturne / NVG Phosphor */
+.map-nvg-tiles .leaflet-tile {
+  filter: sepia(100%) hue-rotate(90deg) saturate(350%) brightness(0.75) contrast(1.4) !important;
+}
+
+/* Thermal FLIR */
+.map-flir-tiles .leaflet-tile {
+  filter: invert(100%) hue-rotate(180deg) saturate(250%) contrast(1.5) !important;
+}
+
+
+/* Scanline Overlay for CCTV */
+.cctv-scanlines {
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%, 
+    rgba(0, 0, 0, 0.4) 50%
+  ), 
+  linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.04),
+    rgba(0, 255, 0, 0.02),
+    rgba(0, 0, 255, 0.04)
+  );
+  background-size: 100% 3px, 6px 100%;
+  pointer-events: none;
+}
+
+/* Leaflet Tactical Popup Override */
+.leaflet-popup-content-wrapper {
+  background: rgba(10, 15, 29, 0.94) !important;
+  color: #e2e8f0 !important;
+  border: 1px solid rgba(0, 229, 255, 0.35) !important;
+  backdrop-filter: blur(12px) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7), 0 0 15px rgba(0, 229, 255, 0.2) !important;
+  border-radius: 8px !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+}
+.leaflet-popup-tip {
+  background: rgba(10, 15, 29, 0.94) !important;
+  border: 1px solid rgba(0, 229, 255, 0.35) !important;
+}
+.leaflet-container {
+  background: #070b12 !important;
+}
+

@@ -3,7 +3,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -29,11 +28,12 @@ import PhoneTrackerScreen from './components/PhoneTrackerScreen';
 import PermissionsScreen from './components/PermissionsScreen';
 import CommandCenterScreen from './components/CommandCenterScreen';
 import DecoyScreen from './components/DecoyScreen';
+import ForensicOSINTScreen from './components/ForensicOSINTScreen';
 import AuthProvider, { useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { initializeOfflineStorage } from './services/offlineStorage';
 import { useSentinelSOS } from './hooks/useSentinelSOS';
-type AppState = 'splash' | 'onboarding' | 'home' | 'enhanced-home' | 'contacts' | 'alerts' | 'profile' | 'guard' | 'evidence' | 'survival' | 'firstaid' | 'snig' | 'enhanced-map' | 'sos' | 'safepath' | 'incident-report' | 'community-chat' | 'phone-tracker' | 'permissions' | 'command-center' | 'decoy';
+type AppState = 'splash' | 'onboarding' | 'home' | 'enhanced-home' | 'contacts' | 'alerts' | 'profile' | 'guard' | 'evidence' | 'survival' | 'firstaid' | 'snig' | 'enhanced-map' | 'sos' | 'safepath' | 'incident-report' | 'community-chat' | 'phone-tracker' | 'permissions' | 'command-center' | 'decoy' | 'forensic-osint';
 
 const queryClient = new QueryClient();
 
@@ -128,6 +128,8 @@ const App = () => {
         return <CommandCenterScreen onNavigate={handleNavigation} />;
       case 'decoy':
         return <DecoyScreen />;
+      case 'forensic-osint':
+        return <ForensicOSINTScreen onNavigate={handleNavigation} />;
       default:
         return <EnhancedHomeScreen onNavigate={handleNavigation} />;
     }
